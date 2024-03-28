@@ -50,16 +50,17 @@ class Trade:
         self.seller = seller
         self.timestamp = timestamp
 
-
 class TradingState(object):
     def __init__(self,
-                 timestamp: Time,
-                 listings: Dict[Symbol, Listing],
-                 order_depths: Dict[Symbol, OrderDepth],
-                 own_trades: Dict[Symbol, List[Trade]],
-                 market_trades: Dict[Symbol, List[Trade]],
-                 position: Dict[Product, Position],
-                 observations: Dict[Product, Observation]):
+                 traderData: str,
+                 timestamp: int,
+                 listings: Dict[str, Listing],
+                 order_depths: Dict[str, OrderDepth],
+                 own_trades: Dict[str, List[Trade]],
+                 market_trades: Dict[str, List[Trade]],
+                 position: Dict[str, int],
+                 observations: Observation):
+        self.traderData = traderData
         self.timestamp = timestamp
         self.listings = listings
         self.order_depths = order_depths
@@ -67,9 +68,9 @@ class TradingState(object):
         self.market_trades = market_trades
         self.position = position
         self.observations = observations
-
+        
     def toJSON(self):
-        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True)
+       return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True)
 
 
 class ProsperityEncoder(JSONEncoder):

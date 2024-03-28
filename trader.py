@@ -1,24 +1,16 @@
 from typing import Dict, List
 from datamodel import Order, TradingState
 
-from products.product import Pearls, Bananas, PinaColadas, Baguette, Ukulele, Basket, Coconut, Dip, Berries, DivingGear
+from products.product import Amethysts, Starfruit
 
-PEARLS_PRICE = 10000
+AMETHYST_PRICE = 10000 # verify
 
 class Trader:
 
     def __init__(self):
         self.products = {
-            "PEARLS": Pearls(),
-            "BANANAS": Bananas(),
-            "PINA_COLADAS": PinaColadas(),
-            "BAGUETTE": Baguette(),
-            "UKULELE": Ukulele(),
-            "PICNIC_BASKET": Basket(),
-            "COCONUTS": Coconut(),
-            "DIP": Dip(),
-            "BERRIES": Berries(),
-            "DIVING_GEAR": DivingGear()
+            "AMETHYSTS": Amethysts(),
+            "STARFRUIT": Starfruit(),
         }
 
     def run(self, state: TradingState) -> Dict[str, List[Order]]:
@@ -30,7 +22,11 @@ class Trader:
         # Initialize the method output dict as an empty dict
         result = {}
 
+        print(state)
+        print("traderData: " + state.traderData)
+        print("Observations: " + str(state.observations))
         for product in state.order_depths.keys():
+            print("Product: ", product)
             if product in self.products.keys():
                 orders: list[Order] = []
 

@@ -5,8 +5,8 @@ from datamodel import TradingState, OrderDepth
 class FixedStrategy(Strategy):
     def __init__(self, name: str, max_pos: int):
         super().__init__(name, max_pos)
-        self.pearls_price = 10000
-        self.pearls_diff = 4
+        self.amethyst_price = 10000 # TODO: verify
+        self.amethyst_diff = 4
 
     def trade(self, trading_state: TradingState, orders: list):
         order_depth: OrderDepth = trading_state.order_depths[self.name]
@@ -19,7 +19,7 @@ class FixedStrategy(Strategy):
 
             # Check if the lowest ask (sell order) is lower than the above defined fair value
             i = 0
-            while i < self.trade_count and best_asks[i] < self.pearls_price:
+            while i < self.trade_count and best_asks[i] < self.amethyst_price:
                 # Fill ith ask order if it's below the acceptable
                 if self.prod_position == self.max_pos:
                     break
@@ -29,7 +29,7 @@ class FixedStrategy(Strategy):
             best_bids = sorted(order_depth.buy_orders.keys(), reverse=True)
 
             i = 0
-            while i < self.trade_count and best_bids[i] > self.pearls_price:
+            while i < self.trade_count and best_bids[i] > self.amethyst_price:
                 if self.prod_position == -self.max_pos:
                     break
                 self.sell_product(best_bids, i, order_depth, orders)

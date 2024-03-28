@@ -3,7 +3,19 @@ from strategies.diff_strategy import DiffStrategy
 from strategies.fixed_strategy import FixedStrategy
 from strategies.time_based_strategy import TimeBasedStrategy
 
+# 2024 Products
 
+# Tutorial Products
+class Amethysts(FixedStrategy):
+    def __init__(self):
+        super().__init__("AMETHYSTS", max_pos=20)
+
+class Starfruit(CrossStrategy):
+    def __init__(self):
+        super().__init__("STARFRUIT", min_req_price_difference=3, max_position=20)
+
+"""
+2023 Products
 class Pearls(FixedStrategy):
     def __init__(self):
         super().__init__("PEARLS", max_pos=20)
@@ -52,3 +64,4 @@ class Berries(TimeBasedStrategy):
 class DivingGear(DiffStrategy):
     def __init__(self):
         super().__init__("DIVING_GEAR", max_position=50, derivative_resolution=15, diff_thresh=25)
+"""

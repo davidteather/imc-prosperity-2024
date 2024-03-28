@@ -1,4 +1,4 @@
-# IMC Prosperity Trading Algorithm
+# IMC Prosperity 2024
 
 Scaffolding from: https://github.com/MichalOkon/imc_prosperity
 
@@ -36,3 +36,10 @@ The code is organized as follows:
 - `strategies`: This directory contains implementations of strategies employed across multiple products
 - `helpers`: This directory houses helper functions utilized during the parameter tuning process
 - `simulator`: This directory comprises the code for the game simulator that allows for strategy testing without official game access
+
+## Write Up
+
+The writeup for our strategy is here
+
+### Tutorial
+
