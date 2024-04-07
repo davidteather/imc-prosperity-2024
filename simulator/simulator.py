@@ -14,6 +14,7 @@ def process_trades(last_prices, last_result):
     # Computes if any trades have been performed and outputs a dictionary containing a list of traded products
 
     own_trades = {}
+    last_result = last_result[0]
     for product in last_result.keys():
 
         own_trades[product] = []
@@ -140,6 +141,7 @@ class Simulator:
                       traded_row[1]['buyer'], traded_row[1]['seller'], timestamp))
 
         state = TradingState(
+            "{}",
             timestamp=timestamp,
             listings=listings,
             order_depths=order_depths,

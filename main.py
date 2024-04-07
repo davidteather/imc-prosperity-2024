@@ -491,11 +491,10 @@ class Trader:
         # Initialize the method output dict as an empty dict
         result = {}
 
-        print(state)
-        print("traderData: " + state.traderData)
-        print("Observations: " + str(state.observations))
+        #print(state)
+        #print("traderData: " + state.traderData)
+        #print("Observations: " + str(state.observations))
         for product in state.order_depths.keys():
-            print("Product: ", product)
             if product in self.products.keys():
                 orders: list[Order] = []
 
