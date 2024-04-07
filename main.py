@@ -352,9 +352,9 @@ class ObservationStrategy(Strategy):
 
         if self.dolphins_spotted and trading_state.timestamp - self.dolphins_spotted_timestamp < self.dolphin_action_time:
             # start buying gear if dolphins have been spotted
-            print(self.dolphins_spotted_timestamp)
+            #print(self.dolphins_spotted_timestamp)
             # print("BUYING GEAR")
-            print(trading_state.timestamp)
+            #print(trading_state.timestamp)
             self.continuous_buy(order_depth, orders)
 
         if self.dolphins_gone and trading_state.timestamp - self.dolphins_gone_timestamp < self.dolphin_action_time:
@@ -416,7 +416,7 @@ class Amethysts(FixedStrategy):
 
 class Starfruit(CrossStrategy):
     def __init__(self):
-        super().__init__("STARFRUIT", min_req_price_difference=3, max_position=20)
+        super().__init__("STARFRUIT", min_req_price_difference=4, max_position=20)
 
 """
 2023 Products
@@ -493,7 +493,116 @@ class Observation:
     def __str__(self) -> str:
         return "(plainValueObservations: " + jsonpickle.encode(self.plainValueObservations) + ", conversionObservations: " + jsonpickle.encode(self.conversionObservations) + ")"
      
+"""
+Logger
+"""
+import json
+from typing import Any
 
+class Logger:
+    def __init__(self) -> None:
+        self.logs = ""
+        self.max_log_length = 3750
+
+    def print(self, *objects: Any, sep: str = " ", end: str = "\n") -> None:
+        self.logs += sep.join(map(str, objects)) + end
+
+    def flush(self, state: TradingState, orders: dict[Symbol, list[Order]], conversions: int, trader_data: str) -> None:
+        base_length = len(self.to_json([
+            self.compress_state(state, ""),
+            self.compress_orders(orders),
+            conversions,
+            "",
+            "",
+        ]))
+
+        # We truncate state.traderData, trader_data, and self.logs to the same max. length to fit the log limit
+        max_item_length = (self.max_log_length - base_length) // 3
+
+        print(self.to_json([
+            self.compress_state(state, self.truncate(state.traderData, max_item_length)),
+            self.compress_orders(orders),
+            conversions,
+            self.truncate(trader_data, max_item_length),
+            self.truncate(self.logs, max_item_length),
+        ]))
+
+        self.logs = ""
+
+    def compress_state(self, state: TradingState, trader_data: str) -> list[Any]:
+        return [
+            state.timestamp,
+            trader_data,
+            self.compress_listings(state.listings),
+            self.compress_order_depths(state.order_depths),
+            self.compress_trades(state.own_trades),
+            self.compress_trades(state.market_trades),
+            state.position,
+            self.compress_observations(state.observations),
+        ]
+
+    def compress_listings(self, listings: dict[Symbol, Listing]) -> list[list[Any]]:
+        compressed = []
+        for listing in listings.values():
+            compressed.append([listing["symbol"], listing["product"], listing["denomination"]])
+
+        return compressed
+
+    def compress_order_depths(self, order_depths: dict[Symbol, OrderDepth]) -> dict[Symbol, list[Any]]:
+        compressed = {}
+        for symbol, order_depth in order_depths.items():
+            compressed[symbol] = [order_depth.buy_orders, order_depth.sell_orders]
+
+        return compressed
+
+    def compress_trades(self, trades: dict[Symbol, list[Trade]]) -> list[list[Any]]:
+        compressed = []
+        for arr in trades.values():
+            for trade in arr:
+                compressed.append([
+                    trade.symbol,
+                    trade.price,
+                    trade.quantity,
+                    trade.buyer,
+                    trade.seller,
+                    trade.timestamp,
+                ])
+
+        return compressed
+
+    def compress_observations(self, observations: Observation) -> list[Any]:
+        conversion_observations = {}
+        for product, observation in observations.conversionObservations.items():
+            conversion_observations[product] = [
+                observation.bidPrice,
+                observation.askPrice,
+                observation.transportFees,
+                observation.exportTariff,
+                observation.importTariff,
+                observation.sunlight,
+                observation.humidity,
+            ]
+
+        return [observations.plainValueObservations, conversion_observations]
+
+    def compress_orders(self, orders: dict[Symbol, list[Order]]) -> list[list[Any]]:
+        compressed = []
+        for arr in orders.values():
+            for order in arr:
+                compressed.append([order.symbol, order.price, order.quantity])
+
+        return compressed
+
+    def to_json(self, value: Any) -> str:
+        return json.dumps(value, cls=ProsperityEncoder, separators=(",", ":"))
+
+    def truncate(self, value: str, max_length: int) -> str:
+        if len(value) <= max_length:
+            return value
+
+        return value[:max_length - 3] + "..."
+
+logger = Logger()
 
 """
     Trader Logic
@@ -506,6 +615,7 @@ class Trader:
             "AMETHYSTS": Amethysts(),
             "STARFRUIT": Starfruit(),
         }
+        self.acceptable_risk_threshold = 0.1
 
     def run(self, state: TradingState):
         """
@@ -527,13 +637,59 @@ class Trader:
                 self.products[product].trade(trading_state=state, orders=orders)
                 result[product] = orders
 
-        # Sample conversion request. Check more details below in the programming
         conversions = None
+        # conversion_opportunity, conversions = self.analyze_conversion_opportunity(state)
+        
+        logger.flush(state, result, conversions, state.traderData)
+        return result, conversions, state.traderData
+    
+    """
+    Conversion stuff that's mostly chatgpt
+    Currently not used and our backtester here doesn't support it
+    Maybe switch to https://github.com/jmerle/imc-prosperity-2-backtester
+    Can run: prosperity2bt main.py 0 --vis
 
-        # Serialize the trader state to JSON or any format that suits your need
-        traderData = json.dumps({
-            # Include any trader state data you want to preserve across executions
-            "someStateData": "SAMPLE"
-        })
+    """
 
-        return result, conversions, traderData
+    def analyze_conversion_opportunity(self, state: TradingState):
+        conversion_opportunity = False
+        conversions = 0
+
+        # Accessing conversionObservations directly from the provided state.observations
+        if "STARFRUIT" in state.observations.conversionObservations and "AMETHYSTS" in state.position:
+            conversion_info = state.observations.conversionObservations["STARFRUIT"]
+            amethyst_position = state.position["AMETHYSTS"]
+            
+            expected_future_price = self.predict_future_price("STARFRUIT", state)
+            current_ask_price = conversion_info.askPrice
+            conversion_cost = conversion_info.transportFees + conversion_info.exportTariff + conversion_info.importTariff
+            
+            potential_profit_per_unit = expected_future_price - current_ask_price - conversion_cost
+            
+            risk_factor = self.calculate_risk_factor("STARFRUIT", state)
+            
+            if potential_profit_per_unit > 0 and risk_factor < self.acceptable_risk_threshold:
+                conversion_opportunity = True
+                confidence_level = self.calculate_confidence_level("STARFRUIT", state)
+                max_conversion_limit = min(amethyst_position, 20)  # Assuming a position limit for STARFRUIT
+                conversions = max_conversion_limit * confidence_level
+            
+        return conversion_opportunity, int(conversions)
+
+    def predict_future_price(self, product, state):
+        # Implement predictive modeling to forecast future price
+        # For simplicity, using moving average as a placeholder
+        moving_average = self.calculate_moving_average(product, state)
+        volatility = self.calculate_volatility(product, state)
+        trend_direction = self.identify_trend_direction(product, state)
+        return moving_average * (1 + trend_direction * volatility)
+
+    def calculate_risk_factor(self, product, state):
+        # Simplified risk calculation based on market volatility
+        volatility = self.calculate_volatility(product, state)
+        return volatility / self.calculate_average_volatility(state)
+
+    def calculate_confidence_level(self, product, state):
+        # Placeholder for confidence level calculation
+        # Could be based on model accuracy, backtesting, etc.
+        return 0.5  # Example static value, should be dynamically calculated

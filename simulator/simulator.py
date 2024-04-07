@@ -92,6 +92,12 @@ class Simulator:
         self.plot_pnl()
         self.plot_positions()
 
+        # Print total profit
+        sum = 0
+        for prod in self.total_pnl.keys():
+            sum += self.total_pnl[prod][-1]
+        print(f"Total profit: {sum}")
+
     def load_trading_sate(self, timestamp, own_trades=None):
         # Creates a new trading state given the timestamp and the own trades that have been performed in the last round
 
