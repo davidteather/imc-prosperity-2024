@@ -15,7 +15,7 @@ pip install -r requirements.txt
 To execute the simulation, enter the following command in your console:
 
 ```
- python -m simulator.simulator_test trader <csv_filename_with_round_data> <csv_filename_with_trades_data>
+ python -m simulator.simulator_test main <csv_filename_with_round_data> <csv_filename_with_trades_data>
 ```
 
 Replace  `<csv_filename_with_round_data>`, and `<csv_filename_with_trades_data>` with the appropriate values.
@@ -23,19 +23,8 @@ Replace  `<csv_filename_with_round_data>`, and `<csv_filename_with_trades_data>`
 For example, to run the simulation with a sample trader, you can use the following command:
 
 ```
-python -m simulator.simulator_test trader datasets_2023/island-data-bottle-round-4/prices_round_4_day_1.csv datasets_2023/island-data-bottle-round-4/trades_round_4_day_1_nn.csv 
+python -m simulator.simulator_test main datasets_2023/island-data-bottle-round-4/prices_round_4_day_1.csv datasets_2023/island-data-bottle-round-4/trades_round_4_day_1_nn.csv 
 ```
-
-## Code Organization
-
-The code is organized as follows:
-
-- `trader.py`: Implements the trader logic
-- `datamodel.py`: Defines basic data models used in trading
-- `products`: This directory holds the implementation of specific products
-- `strategies`: This directory contains implementations of strategies employed across multiple products
-- `helpers`: This directory houses helper functions utilized during the parameter tuning process
-- `simulator`: This directory comprises the code for the game simulator that allows for strategy testing without official game access
 
 ## Write Up
 

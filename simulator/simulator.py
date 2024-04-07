@@ -6,7 +6,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-from datamodel import Listing, OrderDepth, Trade, TradingState
+from main import Listing, OrderDepth, Trade, TradingState
 
 
 # Instructions on how to run this simulator can be found in the readme file

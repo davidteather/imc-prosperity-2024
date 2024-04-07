@@ -2,7 +2,7 @@ import threading
 from itertools import product
 
 from simulator.simulator import Simulator
-from trader import Trader
+from main import Trader
 
 PRODUCT_NAME = 'DIP'
 
