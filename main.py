@@ -284,7 +284,7 @@ class DiffStrategy(Strategy):
 class FixedStrategy(Strategy):
     def __init__(self, name: str, max_pos: int):
         super().__init__(name, max_pos)
-        self.amethyst_price = 10000 # TODO: verify
+        self.amethyst_price = 10000
         self.amethyst_diff = 4
 
     def trade(self, trading_state: TradingState, orders: list):
