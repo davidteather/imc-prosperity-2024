@@ -2,6 +2,7 @@ import json
 from json import JSONEncoder
 import numpy as np
 from typing import List, Tuple, Dict
+import jsonpickle
 
 
 
@@ -469,6 +470,30 @@ class DivingGear(DiffStrategy):
         super().__init__("DIVING_GEAR", max_position=50, derivative_resolution=15, diff_thresh=25)
 """
 
+"""
+Conversin
+"""
+class ConversionObservation:
+
+    def __init__(self, bidPrice: float, askPrice: float, transportFees: float, exportTariff: float, importTariff: float, sunlight: float, humidity: float):
+        self.bidPrice = bidPrice
+        self.askPrice = askPrice
+        self.transportFees = transportFees
+        self.exportTariff = exportTariff
+        self.importTariff = importTariff
+        self.sunlight = sunlight
+        self.humidity = humidity
+
+class Observation:
+
+    def __init__(self, plainValueObservations: Dict[Product, int], conversionObservations: Dict[Product, ConversionObservation]) -> None:
+        self.plainValueObservations = plainValueObservations
+        self.conversionObservations = conversionObservations
+        
+    def __str__(self) -> str:
+        return "(plainValueObservations: " + jsonpickle.encode(self.plainValueObservations) + ", conversionObservations: " + jsonpickle.encode(self.conversionObservations) + ")"
+     
+
 
 """
     Trader Logic
@@ -503,7 +528,7 @@ class Trader:
                 result[product] = orders
 
         # Sample conversion request. Check more details below in the programming
-        conversions = 1
+        conversions = None
 
         # Serialize the trader state to JSON or any format that suits your need
         traderData = json.dumps({
