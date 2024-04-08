@@ -416,7 +416,7 @@ class Amethysts(FixedStrategy):
 
 class Starfruit(CrossStrategy):
     def __init__(self):
-        super().__init__("STARFRUIT", min_req_price_difference=4, max_position=20)
+        super().__init__("STARFRUIT", min_req_price_difference=3, max_position=20)
 
 """
 2023 Products
