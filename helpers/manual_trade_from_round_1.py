@@ -1,36 +1,44 @@
-import itertools
-from typing import List
+import numpy as np
+from tqdm import tqdm
 
-prices = {
-    "Pizza": {"Pizza": 1, "Wasabi": 0.5, "Snowball": 1.45, "Shells": 0.75},
-    "Wasabi": {"Pizza": 1.95, "Wasabi": 1, "Snowball": 3.1, "Shells": 1.49},
-    "Snowball": {"Pizza": 0.67, "Wasabi": 0.31, "Snowball": 1, "Shells": 0.48},
-    "Shells": {"Pizza": 1.34, "Wasabi": 0.64, "Snowball": 1.98, "Shells": 1},
-}
+# Constants
+num_simulations = 100000
+sell_price = 1000  # Selling price in SeaShells
+min_price = 900  # Minimum reserve price
+max_price = 1000  # Maximum reserve price
+profit_margin = sell_price - min_price
 
-goods = ["Pizza", "Wasabi", "Snowball", "Shells"]
+def simulate_bids_linear_distribution():
+    best_profit = 0
+    best_bid_combo = (0, 0)
+    
+    for bid1 in tqdm(range(101)):
+        for bid2 in range(bid1+1, 101):  # Ensure bid2 is always higher than bid1
+            profits = []
+            for _ in range(num_simulations):
+                # Generate a reserve price with linearly increasing probability
+                reserve_price = np.random.triangular(left=0, mode=100, right=100)
+                profit = 0
 
+                # Calculate profit for the first bid
+                if bid1 > reserve_price:
+                    profit += (profit_margin - (bid1 * 10))  # Convert bid back to SeaShells scale
+                
+                # Calculate profit for the second bid
+                elif bid2 > reserve_price:
+                    profit += (profit_margin - (bid2 * 10))  # Convert bid back to SeaShells scale
 
-def calc_money(trades: List[str], amount: float) -> float:
-    for i in range(0, len(trades) - 1):
-        good_from = trades[i]
-        good_to = trades[i + 1]
-        amount *= prices[good_from][good_to]
-    return amount
+                profits.append(profit)
+            
+            # Average profit for this bid combination
+            avg_profit = np.mean(profits)
+            if avg_profit > best_profit:
+                best_profit = avg_profit
+                best_bid_combo = (bid1, bid2)
+                
+    return best_bid_combo, best_profit
 
-
-if __name__ == '__main__':
-    start_amount = 2_000
-    result = []
-    all_combinations = list(itertools.product(goods, repeat=4)) + \
-        list(itertools.product(goods, repeat=3)) + \
-        list(itertools.product(goods, repeat=2)) + \
-        list(itertools.product(goods, repeat=1))
-
-    # Go through all the combinations and append their result
-    for combination in all_combinations:
-        trade = ["Shells"] + list(combination) + ["Shells"]
-        result.append((calc_money(trade, start_amount), trade))
-
-    result.sort(key=lambda x: (-x[0], len(x[1])))
-    print("Final amount: {}\nAchieved with the combination of: {}".format(result[0][0], result[0][1]))
+# Run the simulation with linear distribution
+best_bids_linear, max_profit_linear = simulate_bids_linear_distribution()
+best_bids_linear_scaled = (best_bids_linear[0] * 10 + 900, best_bids_linear[1] * 10 + 900)  # Scale back to SeaShells
+print(best_bids_linear_scaled, max_profit_linear)
