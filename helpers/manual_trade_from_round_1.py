@@ -2,7 +2,7 @@ import numpy as np
 from tqdm import tqdm
 
 # Constants
-num_simulations = 100000
+num_simulations = 1000000
 sell_price = 1000  # Selling price in SeaShells
 min_price = 900  # Minimum reserve price
 max_price = 1000  # Maximum reserve price
