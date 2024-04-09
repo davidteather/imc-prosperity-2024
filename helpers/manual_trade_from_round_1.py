@@ -2,7 +2,7 @@ import numpy as np
 from tqdm import tqdm
 
 # Constants
-num_simulations = 1000000
+num_simulations = 100000
 sell_price = 1000  # Selling price in SeaShells
 min_price = 900  # Minimum reserve price
 max_price = 1000  # Maximum reserve price
@@ -17,7 +17,9 @@ def simulate_bids_linear_distribution():
             profits = []
             for _ in range(num_simulations):
                 # Generate a reserve price with linearly increasing probability
-                reserve_price = np.random.triangular(left=0, mode=100, right=100)
+                reserve_price_continuous = np.random.triangular(left=0.00001, mode=100, right=100)
+                reserve_price = np.ceil(reserve_price_continuous)
+                
                 profit = 0
 
                 # Calculate profit for the first bid
