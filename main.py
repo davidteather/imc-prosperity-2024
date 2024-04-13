@@ -418,6 +418,7 @@ class Starfruit(CrossStrategy):
     def __init__(self):
         super().__init__("STARFRUIT", min_req_price_difference=3, max_position=20)
 
+
 """
 2023 Products
 class Pearls(FixedStrategy):
@@ -492,7 +493,93 @@ class Observation:
         
     def __str__(self) -> str:
         return "(plainValueObservations: " + jsonpickle.encode(self.plainValueObservations) + ", conversionObservations: " + jsonpickle.encode(self.conversionObservations) + ")"
-     
+
+
+class OrchidStrategy(Strategy):
+    """
+    * import only
+    * delicate and can't be vlaued right
+    * depend on sunlight and humdiity
+
+    * if sunlight exposure less than 7 hours a day
+    * production decrease with 4% for every 10 minutes
+    * ideal humitiy is 60-80%
+    * outside of this production falls 2% for every 5% point of humidity change
+    * has shipping costs, in and export tariffs
+    * last we need storage space to keep the storage when they're here
+    * orchids over this can't
+    * good storage is .1 seashell per orchid per timestamp
+    * seemed like by the UI the storage is max 5K units?
+    """
+
+    def __init__(self, name: str, max_position: int, storage_cost_per_unit: float):
+        super().__init__(name, max_position)
+        self.storage_cost_per_unit = storage_cost_per_unit  # Cost to store each orchid per timestamp
+
+    def trade(self, trading_state: TradingState, orders: list):
+        # Fetch current environmental observations
+        obs = trading_state.observations.conversionObservations[self.name]
+        sunlight = obs.sunlight  # hours
+        humidity = obs.humidity  # percentage
+        avg_bid = obs.bidPrice  # average bid price
+        avg_ask = obs.askPrice  # average ask price
+
+        # Calculate production impacts
+        price_adjustment = self.calculate_price_adjustment(sunlight, humidity)
+
+        # Use average ask price as a base for the expected price, adjust based on conditions
+        expected_price = avg_ask + price_adjustment - self.storage_cost_per_unit * self.prod_position
+
+        # Add logistic costs to the expected price
+        expected_price += self.calculate_logistics_cost(obs)
+
+        # Implement buying or selling logic
+        order_depth = trading_state.order_depths[self.name]
+        self.execute_trading_logic(order_depth, orders, expected_price)
+
+    def calculate_price_adjustment(self, sunlight, humidity):
+        adjustment = 0
+        # Calculate sunlight effect
+        if sunlight < 7:
+            missing_minutes = (7 - sunlight) * 60
+            adjustment -= missing_minutes / 10 * 0.04  # 4% decrease per 10 minutes below 7 hours
+
+        # Calculate humidity effect
+        if humidity < 60:
+            adjustment -= (60 - humidity) / 5 * 0.02
+        elif humidity > 80:
+            adjustment -= (humidity - 80) / 5 * 0.02
+
+        return adjustment
+
+    def calculate_logistics_cost(self, obs: ConversionObservation):
+        return obs.transportFees + obs.exportTariff + obs.importTariff
+
+    def execute_trading_logic(self, order_depth, orders, expected_price):
+        best_asks = sorted(order_depth.sell_orders.keys())
+        best_bids = sorted(order_depth.buy_orders.keys(), reverse=True)
+
+        # Decision to buy
+        for ask_price in best_asks:
+            if ask_price < expected_price and self.prod_position < self.max_pos:
+                quantity = min(order_depth.sell_orders[ask_price], self.max_pos - self.prod_position)
+                orders.append(Order(self.name, ask_price, quantity))
+                self.prod_position += quantity
+                break  # Buy only at the best price
+
+        # Decision to sell
+        for bid_price in best_bids:
+            if bid_price > expected_price and self.prod_position > 0:
+                quantity = min(order_depth.buy_orders[bid_price], self.prod_position)
+                orders.append(Order(self.name, bid_price, -quantity))
+                self.prod_position -= quantity
+                break
+
+
+class Orchids(OrchidStrategy):
+    def __init__(self):
+        super().__init__("ORCHIDS", max_position=100, storage_cost_per_unit=0.1)
+
 """
 Logger
 """
@@ -614,6 +701,7 @@ class Trader:
         self.products = {
             "AMETHYSTS": Amethysts(),
             "STARFRUIT": Starfruit(),
+            "ORCHIDS": Orchids(),
         }
         self.acceptable_risk_threshold = 0.1
 
