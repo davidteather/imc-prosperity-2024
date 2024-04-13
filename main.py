@@ -520,6 +520,13 @@ class OrchidStrategy(Strategy):
         # Fetch current environmental observations
         obs = trading_state.observations.conversionObservations[self.name]
         sunlight = obs.sunlight  # hours
+        """
+        note: I think the most continuous question everyone is having is the units for
+        sunlight. Tropical TV says that something happens when sunlight is
+        "under 7 hours a day", but the units for sunlight are in huge numbers,
+        such as 2500. How do we convert those to hours a day? Do we divide by 365? 
+
+        """
         humidity = obs.humidity  # percentage
         avg_bid = obs.bidPrice  # average bid price
         avg_ask = obs.askPrice  # average ask price
