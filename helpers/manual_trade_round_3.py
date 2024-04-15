@@ -5,8 +5,8 @@ class TileAttributes:
         self.multiplier = multiplier
         self.hunters = hunters
 
-    def real_reward(self, percentage_of_pop_picked=0):
-        return self.multiplier / (self.hunters + percentage_of_pop_picked)
+    def real_reward(self, base_reward, percentage_of_pop_picked=0, add_hunters=0):
+        return (base_reward * self.multiplier) / (self.hunters + percentage_of_pop_picked + add_hunters)
 
     def __str__(self):
         return f"({self.row}, {self.col}) {self.multiplier}x{self.hunters}"
@@ -57,12 +57,9 @@ cost_of_each_exploration = [0, 25000, 75000]
 all_profits = []
 for i, row in enumerate(initial_tiles):
     for tile in row:
-        # Calculate total treasure
-        total_treasure = tile.multiplier * min_tile_reward
-        
         # Calculate initial reward assuming the given number of hunters 
         # TODO: we should consider the percentage of the population that has picked the tile too
-        initial_reward = total_treasure / tile.hunters
+        initial_reward = tile.real_reward(min_tile_reward, add_hunters=1)
         
         # Calculate profits subtracting the costs for each potential expedition
         profits = [initial_reward - cost for cost in cost_of_each_exploration]
