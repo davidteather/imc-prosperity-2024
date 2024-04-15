@@ -73,6 +73,6 @@ for i, row in enumerate(initial_tiles):
 # Sort the profits by the highest profit first
 all_profits.sort(key=lambda x: x[1], reverse=True)
 
-
-print(all_profits)
+for p in all_profits:
+    print(p[0], p[1])
 
