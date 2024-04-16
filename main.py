@@ -225,8 +225,8 @@ class CrossStrategy(Strategy):
 
 
 class DiffStrategy(Strategy):
-    def __init__(self, name: str, max_position: int, derivative_resolution: int, diff_thresh: int):
-        super().__init__(name, max_position)
+    def __init__(self, name: str, max_pos: int, derivative_resolution: int, diff_thresh: int):
+        super().__init__(name, max_pos)
         self.derivative_resolution: int = derivative_resolution
         self.diff_thresh: int = diff_thresh
 
@@ -587,6 +587,22 @@ class Orchids(OrchidStrategy):
     def __init__(self):
         super().__init__("ORCHIDS", max_position=100, storage_cost_per_unit=0.1)
 
+class Chocolates(DiffStrategy):
+    def __init__(self):
+        super().__init__("CHOCOLATE", max_pos=250, derivative_resolution=50, diff_thresh=20)
+
+class Strawberries(DiffStrategy):
+    def __init__(self):
+        super().__init__("STRAWBERRIES", max_pos=350, derivative_resolution=50, diff_thresh=20)
+
+class Roses(DiffStrategy):
+    def __init__(self):
+        super().__init__("ROSES", max_pos=60, derivative_resolution=150, diff_thresh=20)
+
+class GiftBaskets(DiffStrategy):
+    def __init__(self):
+        super().__init__("GIFT_BASKET", max_pos=60, derivative_resolution=150, diff_thresh=20)
+
 """
 Logger
 """
@@ -709,6 +725,10 @@ class Trader:
             "AMETHYSTS": Amethysts(),
             "STARFRUIT": Starfruit(),
             "ORCHIDS": Orchids(),
+            "CHOCOLATE": Chocolates(),
+            "STRAWBERRIES": Strawberries(),
+            "ROSES": Roses(),
+            "GIFT_BASKET": GiftBaskets(),
         }
         self.acceptable_risk_threshold = 0.1
 
