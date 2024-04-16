@@ -595,6 +595,7 @@ class Strawberries(DiffStrategy):
     def __init__(self):
         super().__init__("STRAWBERRIES", max_pos=350, derivative_resolution=50, diff_thresh=20)
 
+
 class Roses(DiffStrategy):
     def __init__(self):
         super().__init__("ROSES", max_pos=60, derivative_resolution=150, diff_thresh=20)
