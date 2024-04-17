@@ -281,6 +281,13 @@ class DiffStrategy(Strategy):
             self.cached_prices.append(prices)
 
 
+class NullStrategy(Strategy):
+    def __init__(self, name: str, max_pos: int, **kwargs):
+        super().__init__(name, max_pos)
+    
+    def trade(self, trading_state: TradingState, orders: list):
+        pass
+
 class FixedStrategy(Strategy):
     def __init__(self, name: str, max_pos: int):
         super().__init__(name, max_pos)
@@ -589,16 +596,16 @@ class Orchids(OrchidStrategy):
 
 class Chocolates(DiffStrategy):
     def __init__(self):
-        super().__init__("CHOCOLATE", max_pos=250, derivative_resolution=50, diff_thresh=20)
+        super().__init__("CHOCOLATE", max_pos=250, derivative_resolution=20, diff_thresh=50)
 
 class Strawberries(DiffStrategy):
     def __init__(self):
-        super().__init__("STRAWBERRIES", max_pos=350, derivative_resolution=50, diff_thresh=20)
+        super().__init__("STRAWBERRIES", max_pos=350, derivative_resolution=20, diff_thresh=50)
 
 
 class Roses(DiffStrategy):
     def __init__(self):
-        super().__init__("ROSES", max_pos=60, derivative_resolution=150, diff_thresh=20)
+        super().__init__("ROSES", max_pos=60, derivative_resolution=500, diff_thresh=150)
 
 class BasketStrategy(Strategy):
     def __init__(self, name: str, max_pos: int, premium: int):
