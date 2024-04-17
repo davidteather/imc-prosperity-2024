@@ -600,9 +600,65 @@ class Roses(DiffStrategy):
     def __init__(self):
         super().__init__("ROSES", max_pos=60, derivative_resolution=150, diff_thresh=20)
 
-class GiftBaskets(DiffStrategy):
+class BasketStrategy(Strategy):
+    def __init__(self, name: str, max_pos: int, premium: int):
+        super().__init__(name, max_pos)
+        self.premium = premium
+
+    def calculate_expected_price(self, chocolate_price, strawberries_price, roses_price):
+        # Calculate the expected price of the gift basket based on its components
+        return (4 * chocolate_price) + (6 * strawberries_price) + roses_price + self.premium
+
+    def trade(self, trading_state: TradingState, orders: list):
+        # Get current market prices of the components and the basket
+        chocolate_price = self.get_market_price(trading_state, "CHOCOLATE")
+        strawberries_price = self.get_market_price(trading_state, "STRAWBERRIES")
+        roses_price = self.get_market_price(trading_state, "ROSES")
+        gift_basket_price = self.get_market_price(trading_state, "GIFT_BASKET")
+
+        # Calculate the expected market price of the gift basket
+        expected_price = self.calculate_expected_price(chocolate_price, strawberries_price, roses_price)
+
+        # Determine the action based on the comparison of current and expected prices
+        if gift_basket_price > expected_price:
+            # Sort orders to sell Gift Basket
+            self.continuous_sell(trading_state.order_depths["GIFT_BASKET"], orders)
+
+        elif gift_basket_price < expected_price:
+            # Sort orders to buy Gift Basket
+            self.continuous_buy(trading_state.order_depths["GIFT_BASKET"], orders)
+
+    def get_market_price(self, trading_state, product):
+        # Simplified market price retrieval from order depth
+        order_depth = trading_state.order_depths[product]
+        if order_depth.sell_orders:
+            return min(order_depth.sell_orders.keys())
+        return float('inf')  # Return a high price if no sell orders are available
+
+    def buy_components(self, trading_state, orders, chocolate_price, strawberries_price, roses_price):
+        # Buy components if there's enough room in position limits
+        self.continuous_buy_component("CHOCOLATE", chocolate_price, 4, trading_state, orders)
+        self.continuous_buy_component("STRAWBERRIES", strawberries_price, 6, trading_state, orders)
+        self.continuous_buy_component("ROSES", roses_price, 1, trading_state, orders)
+
+    def sell_components(self, trading_state, orders, chocolate_price, strawberries_price, roses_price):
+        # Sell components
+        self.continuous_sell_component("CHOCOLATE", chocolate_price, 4, trading_state, orders)
+        self.continuous_sell_component("STRAWBERRIES", strawberries_price, 6, trading_state, orders)
+        self.continuous_sell_component("ROSES", roses_price, 1, trading_state, orders)
+
+    def continuous_buy_component(self, component_name, price, quantity, trading_state, orders):
+        if trading_state.position.get(component_name, 0) + quantity <= self.max_pos:
+            orders.append(Order(component_name, price, quantity))
+
+    def continuous_sell_component(self, component_name, price, quantity, trading_state, orders):
+        if trading_state.position.get(component_name, 0) >= quantity:
+            orders.append(Order(component_name, price, -quantity))
+
+
+class GiftBaskets(BasketStrategy):
     def __init__(self):
-        super().__init__("GIFT_BASKET", max_pos=60, derivative_resolution=150, diff_thresh=20)
+        super().__init__("GIFT_BASKET", max_pos=60, premium=375)
 
 """
 Logger
