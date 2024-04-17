@@ -6,6 +6,8 @@ class TileAttributes:
         self.hunters = hunters
 
     def real_reward(self, base_reward, percentage_of_pop_picked=0, add_hunters=0):
+        #print(f"Calculating reward for {self.row}{self.col} with {self.hunters} hunters value: " + str(base_reward) + " with " + str((base_reward * self.multiplier)/(self.hunters+1)) + " ")
+        
         return (base_reward * self.multiplier) / (self.hunters + percentage_of_pop_picked + add_hunters)
 
     def __str__(self):
@@ -59,13 +61,14 @@ for i, row in enumerate(initial_tiles):
     for tile in row:
         # Calculate initial reward assuming the given number of hunters 
         # TODO: we should consider the percentage of the population that has picked the tile too
-        initial_reward = tile.real_reward(min_tile_reward, add_hunters=1)
+        initial_reward = tile.real_reward(min_tile_reward, add_hunters=0)
         
         # Calculate profits subtracting the costs for each potential expedition
-        profits = [initial_reward - cost for cost in cost_of_each_exploration]
+        # profits = [initial_reward - cost for cost in cost_of_each_exploration]
         
         # Append results including tile details
-        all_profits.append((f"Tile {tile.row}{tile.col}", initial_reward, profits))
+        #print(f"Tile {tile.row}{tile.col} with {tile.hunters} hunters: {initial_reward}")
+        all_profits.append((f"Tile {tile.row}{tile.col}", initial_reward))
 
 # Sort the profits by the highest profit first
 all_profits.sort(key=lambda x: x[1], reverse=True)
