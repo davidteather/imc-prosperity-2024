@@ -594,13 +594,13 @@ class Orchids(OrchidStrategy):
     def __init__(self):
         super().__init__("ORCHIDS", max_position=100, storage_cost_per_unit=0.1)
 
-class Chocolates(DiffStrategy):
+class Chocolates(NullStrategy):
     def __init__(self):
-        super().__init__("CHOCOLATE", max_pos=250, derivative_resolution=20, diff_thresh=50)
+        super().__init__("CHOCOLATE", max_pos=250, derivative_resolution=1500, diff_thresh=200)
 
-class Strawberries(DiffStrategy):
+class Strawberries(NullStrategy):
     def __init__(self):
-        super().__init__("STRAWBERRIES", max_pos=350, derivative_resolution=20, diff_thresh=50)
+        super().__init__("STRAWBERRIES", max_pos=350, derivative_resolution=1500, diff_thresh=200)
 
 
 class Roses(DiffStrategy):
