@@ -662,10 +662,18 @@ class BasketStrategy(Strategy):
         if trading_state.position.get(component_name, 0) >= quantity:
             orders.append(Order(component_name, price, -quantity))
 
-
 class GiftBaskets(BasketStrategy):
     def __init__(self):
         super().__init__("GIFT_BASKET", max_pos=60, premium=375)
+
+
+class Coconuts(NullStrategy):
+    def __init__(self):
+        super().__init__("ROSES", max_pos=300)
+
+class CoconutCoupons(NullStrategy):
+    def __init__(self):
+        super().__init__("ROSES", max_pos=600)
 
 """
 Logger
@@ -793,6 +801,8 @@ class Trader:
             "STRAWBERRIES": Strawberries(),
             "ROSES": Roses(),
             "GIFT_BASKET": GiftBaskets(),
+            "COCONUT": Coconuts(),
+            "COCONUT_COUPON": CoconutCoupons()
         }
         self.acceptable_risk_threshold = 0.1
 
