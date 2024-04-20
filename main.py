@@ -3,7 +3,23 @@ from json import JSONEncoder
 import numpy as np
 from typing import List, Tuple, Dict
 import jsonpickle
-from scipy.stats import norm
+import math
+
+def cdf(x):
+    """Approximation of the cumulative distribution function for the standard normal distribution."""
+    # Constants for the approximation
+    a1, a2, a3, a4, a5 = 0.254829592, -0.284496736, 1.421413741, -1.453152027, 1.061405429
+    p = 0.3275911
+
+    # Save the sign of x
+    sign = 1 if x >= 0 else -1
+    x = abs(x) / math.sqrt(2.0)
+
+    # A&S formula 7.1.26
+    t = 1.0 / (1.0 + p*x)
+    y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t * math.exp(-x*x)
+
+    return 0.5 * (1.0 + sign * y)
 
 
 
@@ -692,16 +708,17 @@ class BlackScholesStrategy(Strategy):
             return 0
         S = current_price
         K = self.strike_price
-        T = time_to_maturity
+        T = time_to_maturity / 365
         r = self.r
         sigma = self.sigma
         d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
         d2 = d1 - sigma * np.sqrt(T)
-        call_price = (S * norm.cdf(d1) - (K + premium) * np.exp(-r * T) * norm.cdf(d2))
+        call_price = (S * cdf(d1) - (K + premium) * np.exp(-r * T) * cdf(d2))
         return call_price
 
     def trade(self, trading_state: TradingState, orders: list):
         current_price = self.get_current_price(trading_state, self.name.replace('_COUPON', ''))
+        self.update_volatility(self.cached_prices)
         premium = self.calculate_dynamic_premium(self.maturity)  # Calculate premium dynamically
         theoretical_price = self.black_scholes_price(current_price, self.maturity, premium)
         order_depth = trading_state.order_depths[self.name]
@@ -710,21 +727,23 @@ class BlackScholesStrategy(Strategy):
     def calculate_dynamic_premium(self, days_until_expiration):
         # Dynamic premium calculation based on remaining days and volatility
         base_premium = 637.63  # Base premium, adjust as needed
+        return base_premium
         return base_premium * (1 + self.sigma / 100) * (days_until_expiration / self.maturity)
 
     def execute_trading_logic(self, order_depth, orders, theoretical_price, current_price):
-        # Execute trades based on theoretical and current market prices
-        for ask_price in sorted(order_depth.sell_orders.keys()):
-            if ask_price < theoretical_price and self.prod_position < self.max_pos:
-                quantity = order_depth.sell_orders[ask_price]
-                orders.append(Order(self.name, ask_price, quantity))
-                self.prod_position += quantity
+        # Sort the asks and bids so that we can access the best prices
+        best_asks = sorted(order_depth.sell_orders.keys())
+        best_bids = sorted(order_depth.buy_orders.keys(), reverse=True)
 
-        for bid_price in sorted(order_depth.buy_orders.keys(), reverse=True):
-            if bid_price > theoretical_price and self.prod_position > 0:
-                quantity = order_depth.buy_orders[bid_price]
-                orders.append(Order(self.name, bid_price, -quantity))
-                self.prod_position -= quantity
+        # Go through the asks and determine if we should buy
+        for i, ask_price in enumerate(best_asks):
+            if ask_price < theoretical_price:
+                self.buy_product(best_asks, i, order_depth, orders)
+
+        # Go through the bids and determine if we should sell
+        for i, bid_price in enumerate(best_bids):
+            if bid_price > theoretical_price:
+                self.sell_product(best_bids, i, order_depth, orders)
 
     def get_current_price(self, trading_state, product):
         # Retrieve the current price from order depth
