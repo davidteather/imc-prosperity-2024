@@ -4,6 +4,7 @@ import numpy as np
 from typing import List, Tuple, Dict
 import jsonpickle
 import math
+from math import exp, sqrt, log, pi
 
 def cdf(x):
     """Approximation of the cumulative distribution function for the standard normal distribution."""
@@ -20,6 +21,21 @@ def cdf(x):
     y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t * math.exp(-x*x)
 
     return 0.5 * (1.0 + sign * y)
+
+def norm_cdf(x):
+    """ An approximation to the cumulative distribution function for the standard normal distribution.
+        Using the Abramowitz and Stegun approximation formula. """
+    if x < 0:
+        return 1 - norm_cdf(-x)
+    b1 = 0.319381530
+    b2 = -0.356563782
+    b3 = 1.781477937
+    b4 = -1.821255978
+    b5 = 1.330274429
+    p = 0.2316419
+    t = 1 / (1 + p * x)
+    mini = t * (b1 + t * (b2 + t * (b3 + t * (b4 + t * b5))))
+    return 1 - mini * exp(-x * x / 2) / sqrt(2 * pi)
 
 
 
@@ -684,85 +700,66 @@ class GiftBaskets(BasketStrategy):
         super().__init__("GIFT_BASKET", max_pos=60, premium=375)
 
 
+
 class BlackScholesStrategy(Strategy):
-    def __init__(self, name: str, strike_price: float, maturity: int, max_pos: int, premium: int):
+    def __init__(self, name: str, strike_price: float, maturity: int, max_pos: int, premium: float):
         super().__init__(name, max_pos)
         self.strike_price = strike_price
-        self.premium = premium
-        self.maturity = maturity  # days until expiration
-        self.r = 0.0  # risk-free rate, assume 0 for simplicity
-        self.sigma = 0.2  # initial volatility estimate, adjust as needed
+        self.maturity = maturity
+        self.initial_premium = premium
+        self.r = 0.0
+        self.sigma = 0.2
 
     def update_volatility(self, historical_prices):
-        # Use Exponentially Weighted Moving Average (EWMA) to update volatility
-        lambda_ = 0.94  # Decay factor for EWMA, common choice in finance
+        lambda_ = 0.94
         if len(historical_prices) > 1:
             returns = np.diff(historical_prices) / historical_prices[:-1]
             var = np.var(returns)
-            if hasattr(self, 'sigma'):
-                self.sigma = np.sqrt(lambda_ * self.sigma**2 + (1 - lambda_) * var) * np.sqrt(252)
-            else:
-                self.sigma = np.sqrt(var) * np.sqrt(252)
+            self.sigma = np.sqrt(lambda_ * self.sigma ** 2 + (1 - lambda_) * var) * np.sqrt(252)
 
     def black_scholes_price(self, current_price, time_to_maturity):
-        if current_price <= 0 or self.strike_price <= 0 or time_to_maturity <= 0 or self.sigma <= 0:
-            return 0
-        
-        # Convert days to years for time_to_maturity
         T = time_to_maturity / 365.0
         S = current_price
         K = self.strike_price
         r = self.r
         sigma = self.sigma
-        d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
-        d2 = d1 - sigma * np.sqrt(T)
-        # Calculate the Black-Scholes price for a European call option
-        call_price = S * cdf(d1) - K * np.exp(-r * T) * cdf(d2)
+        d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * sqrt(T))
+        d2 = d1 - sigma * sqrt(T)
+        call_price = S * norm_cdf(d1) - K * exp(-r * T) * norm_cdf(d2)
         return call_price
+
+    def calculate_premium(self, time_to_maturity):
+        # Adjust premium based on time to maturity and volatility
+        decay_factor = exp(-self.r * (time_to_maturity / 365))
+        return self.initial_premium * decay_factor * (1 + self.sigma / 10)
 
     def trade(self, trading_state: TradingState, orders: list):
         current_price = self.get_current_price(trading_state, self.name.replace('_COUPON', ''))
-        theoretical_price = self.black_scholes_price(current_price, self.maturity) + self.premium
+        time_to_maturity = self.maturity
+        premium = self.calculate_premium(time_to_maturity)
+        theoretical_price = self.black_scholes_price(current_price, time_to_maturity) + premium
+
         order_depth = trading_state.order_depths[self.name]
         self.execute_trading_logic(order_depth, orders, theoretical_price, current_price)
 
-    """
     def execute_trading_logic(self, order_depth, orders, theoretical_price, current_price):
-        # Execute trades based on theoretical and current market prices
-        for ask_price in sorted(order_depth.sell_orders.keys()):
-            if ask_price < theoretical_price and self.prod_position < self.max_pos:
-                quantity = order_depth.sell_orders[ask_price]
-                orders.append(Order(self.name, ask_price, quantity))
-                self.prod_position += quantity
+        best_ask = min(order_depth.sell_orders, default=float('inf'))
+        best_bid = max(order_depth.buy_orders, default=0)
 
-        for bid_price in sorted(order_depth.buy_orders.keys(), reverse=True):
-            if bid_price > theoretical_price and self.prod_position > 0:
-                quantity = order_depth.buy_orders[bid_price]
-                orders.append(Order(self.name, bid_price, -quantity))
-                self.prod_position -= quantity
-    """
+        if best_ask < theoretical_price:
+            self.buy_product([best_ask], 0, order_depth, orders)
 
-    def execute_trading_logic(self, order_depth, orders, theoretical_price, current_price):
-        # Sort the asks and bids so that we can access the best prices
-        best_asks = sorted(order_depth.sell_orders.keys())
-        best_bids = sorted(order_depth.buy_orders.keys(), reverse=True)
-
-        # Go through the asks and determine if we should buy
-        for i, ask_price in enumerate(best_asks):
-            if ask_price < theoretical_price:
-                self.buy_product(best_asks, i, order_depth, orders)
-
-        # Go through the bids and determine if we should sell
-        for i, bid_price in enumerate(best_bids):
-            if bid_price > theoretical_price:
-                self.sell_product(best_bids, i, order_depth, orders)
+        if best_bid > theoretical_price:
+            self.sell_product([best_bid], 0, order_depth, orders)
 
     def get_current_price(self, trading_state, product):
-        # Retrieve the current price from order depth
         order_depth = trading_state.order_depths[product]
         if order_depth.sell_orders:
             return min(order_depth.sell_orders.keys())
-        return float('inf')  # High price if no sell orders are availabl
+        return float('inf')
+
+
+
 
 class Coconuts(NullStrategy):
     def __init__(self):
