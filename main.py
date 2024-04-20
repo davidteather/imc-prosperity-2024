@@ -3,6 +3,7 @@ from json import JSONEncoder
 import numpy as np
 from typing import List, Tuple, Dict
 import jsonpickle
+from scipy.stats import norm
 
 
 
@@ -667,13 +668,79 @@ class GiftBaskets(BasketStrategy):
         super().__init__("GIFT_BASKET", max_pos=60, premium=375)
 
 
+class BlackScholesStrategy(Strategy):
+    def __init__(self, name: str, strike_price: float, maturity: int, max_pos: int):
+        super().__init__(name, max_pos)
+        self.strike_price = strike_price
+        self.maturity = maturity  # days until expiration
+        self.r = 0.0  # risk-free rate, assume 0 for simplicity
+        self.sigma = 0.2  # initial volatility estimate, adjust as needed
+
+    def update_volatility(self, historical_prices):
+        # Use Exponentially Weighted Moving Average (EWMA) to update volatility
+        lambda_ = 0.94  # Decay factor for EWMA, common choice in finance
+        if len(historical_prices) > 1:
+            returns = np.diff(historical_prices) / historical_prices[:-1]
+            var = np.var(returns)
+            if hasattr(self, 'sigma'):
+                self.sigma = np.sqrt(lambda_ * self.sigma**2 + (1 - lambda_) * var) * np.sqrt(252)
+            else:
+                self.sigma = np.sqrt(var) * np.sqrt(252)
+
+    def black_scholes_price(self, current_price, time_to_maturity, premium = 0):
+        if current_price <= 0 or self.strike_price <= 0 or time_to_maturity <= 0 or self.sigma <= 0:
+            return 0
+        S = current_price
+        K = self.strike_price
+        T = time_to_maturity
+        r = self.r
+        sigma = self.sigma
+        d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
+        d2 = d1 - sigma * np.sqrt(T)
+        call_price = (S * norm.cdf(d1) - (K + premium) * np.exp(-r * T) * norm.cdf(d2))
+        return call_price
+
+    def trade(self, trading_state: TradingState, orders: list):
+        current_price = self.get_current_price(trading_state, self.name.replace('_COUPON', ''))
+        premium = self.calculate_dynamic_premium(self.maturity)  # Calculate premium dynamically
+        theoretical_price = self.black_scholes_price(current_price, self.maturity, premium)
+        order_depth = trading_state.order_depths[self.name]
+        self.execute_trading_logic(order_depth, orders, theoretical_price, current_price)
+
+    def calculate_dynamic_premium(self, days_until_expiration):
+        # Dynamic premium calculation based on remaining days and volatility
+        base_premium = 637.63  # Base premium, adjust as needed
+        return base_premium * (1 + self.sigma / 100) * (days_until_expiration / self.maturity)
+
+    def execute_trading_logic(self, order_depth, orders, theoretical_price, current_price):
+        # Execute trades based on theoretical and current market prices
+        for ask_price in sorted(order_depth.sell_orders.keys()):
+            if ask_price < theoretical_price and self.prod_position < self.max_pos:
+                quantity = order_depth.sell_orders[ask_price]
+                orders.append(Order(self.name, ask_price, quantity))
+                self.prod_position += quantity
+
+        for bid_price in sorted(order_depth.buy_orders.keys(), reverse=True):
+            if bid_price > theoretical_price and self.prod_position > 0:
+                quantity = order_depth.buy_orders[bid_price]
+                orders.append(Order(self.name, bid_price, -quantity))
+                self.prod_position -= quantity
+
+    def get_current_price(self, trading_state, product):
+        # Retrieve the current price from order depth
+        order_depth = trading_state.order_depths[product]
+        if order_depth.sell_orders:
+            return min(order_depth.sell_orders.keys())
+        return float('inf')  # High price if no sell orders are availabl
+
 class Coconuts(NullStrategy):
     def __init__(self):
-        super().__init__("ROSES", max_pos=300)
+        super().__init__("COCONUT", max_pos=300)
 
-class CoconutCoupons(NullStrategy):
+class CoconutCoupons(BlackScholesStrategy):
     def __init__(self):
-        super().__init__("ROSES", max_pos=600)
+        round = 4
+        super().__init__("COCONUT_COUPON", max_pos=600, strike_price=10000, maturity=250 - round)
 
 """
 Logger
