@@ -5,23 +5,10 @@ from typing import List, Tuple, Dict
 import jsonpickle
 import math
 
+from math import *
+
 def cdf(x):
-    """Approximation of the cumulative distribution function for the standard normal distribution."""
-    # Constants for the approximation
-    a1, a2, a3, a4, a5 = 0.254829592, -0.284496736, 1.421413741, -1.453152027, 1.061405429
-    p = 0.3275911
-
-    # Save the sign of x
-    sign = 1 if x >= 0 else -1
-    x = abs(x) / math.sqrt(2.0)
-
-    # A&S formula 7.1.26
-    t = 1.0 / (1.0 + p*x)
-    y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t * math.exp(-x*x)
-
-    return 0.5 * (1.0 + sign * y)
-
-
+    return (1.0 + erf(x / sqrt(2.0))) / 2.0
 
 """
  Data Model
@@ -691,59 +678,166 @@ class BlackScholesStrategy(Strategy):
         self.maturity = maturity  # days until expiration
         self.r = 0.0  # risk-free rate, assume 0 for simplicity
         self.sigma = 0.2  # initial volatility estimate, adjust as needed
-
+        self.current_position = 0
+    
     def update_volatility(self, historical_prices):
-        # Use Exponentially Weighted Moving Average (EWMA) to update volatility
-        lambda_ = 0.94  # Decay factor for EWMA, common choice in finance
-        if len(historical_prices) > 1:
-            returns = np.diff(historical_prices) / historical_prices[:-1]
-            var = np.var(returns)
-            if hasattr(self, 'sigma'):
-                self.sigma = np.sqrt(lambda_ * self.sigma**2 + (1 - lambda_) * var) * np.sqrt(252)
-            else:
-                self.sigma = np.sqrt(var) * np.sqrt(252)
+        if len(historical_prices) > 30:
+            prices = np.array(historical_prices)
 
-    def black_scholes_price(self, current_price, time_to_maturity, premium = 0):
+            # Ensure all prices are positive
+            if np.any(prices <= 0):
+                raise ValueError("Prices should all be positive to calculate logarithmic returns.")
+
+            # Calculate daily logarithmic returns
+            log_returns = np.log(prices[1:] / prices[:-1])
+
+            # Calculate the standard deviation of the logarithmic returns
+            std_dev = np.std(log_returns)
+
+            # Annualize the volatility (square root of 252 trading days)
+            annual_volatility = std_dev * np.sqrt(252)
+
+            self.sigma = annual_volatility
+            return annual_volatility
+        else:
+            # Handle the case where there are not enough data points gracefully
+            if hasattr(self, 'sigma'):
+                return self.sigma  # Return the existing sigma if available
+            else:
+                return 0.2
+        
+    def bs_call(self, S, K, T, r, sigma, premium):
+        """
+        S - current asset price
+        K - strike price of the option
+        T - time until option expiration 
+        r - risk-free rate
+        sigma - volatility of the underlying asset
+        """
+        d1 = (np.log(S/K) + (r + sigma**2 / 2) * T) / (sigma * np.sqrt(T))
+        d2 = d1 - sigma * np.sqrt(T)
+        call_price = S * cdf(d1) - K * np.exp(-r * T) * cdf(d2) + premium
+        return call_price
+
+    def bs_put(self, S, K, T, r, sigma, premium):
+        """
+        S - current asset price
+        K - strike price of the option
+        T - time until option expiration 
+        r - risk-free rate
+        sigma - volatility of the underlying asset
+        """
+        d1 = (np.log(S/K) + (r + sigma**2 / 2) * T) / (sigma * np.sqrt(T))
+        d2 = d1 - sigma * np.sqrt(T)
+        put_price = K * np.exp(-r * T) * cdf(-d2) - S * cdf(-d1) + premium
+        return put_price
+
+    def black_scholes_price(self, current_price, time_to_maturity, premium):
         if current_price <= 0 or self.strike_price <= 0 or time_to_maturity <= 0 or self.sigma <= 0:
             return 0
-        S = current_price
-        K = self.strike_price
-        T = time_to_maturity / 365
+
+        # Adjust inputs to avoid extreme outcomes
+        S = max(current_price, 0.01)  # Ensure S is positive
+        K = max(self.strike_price, 0.01)  # Ensure K is positive
+        T = 250 / 365
         r = self.r
         sigma = self.sigma
+        #sigma = max(self.sigma, 0.01)  # Ensure sigma is not zero
+        #sigma = min(sigma, 2.0) 
+        
         d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
         d2 = d1 - sigma * np.sqrt(T)
         call_price = (S * cdf(d1) - (K + premium) * np.exp(-r * T) * cdf(d2))
-        
+
+        #with open("t.txt", "a") as o:
+        #    o.write(f"{S}, {K}, {T}, {r}, {sigma}, {d1}, {d2}, {call_price} based on {self.#cached_prices}\n")
+
         return call_price
 
     def trade(self, trading_state: TradingState, orders: list):
         current_price = self.get_current_price(trading_state, self.name.replace('_COUPON', ''))
+        coupon_price = self.get_current_price(trading_state, self.name)
+        self.cached_prices.append(current_price)
         self.update_volatility(self.cached_prices)
-        premium = self.calculate_dynamic_premium(self.maturity)  # Calculate premium dynamically
-        theoretical_price = self.black_scholes_price(current_price, self.maturity, premium)
+
+        #if len(self.cached_prices) < 20:
+        #    return
+
+        base_premium = 637.63
+        bs_call = self.bs_call(S=current_price, K=10000, T=250/365, r=0, sigma=self.sigma, premium=base_premium)
+        bs_put = self.bs_put(S=current_price, K=10000, T=250/365, r=0, sigma=self.sigma, premium=base_premium)
+        #theoretical_price = self.black_scholes_price(current_price, self.maturity, base_premium)
         order_depth = trading_state.order_depths[self.name]
-        self.execute_trading_logic(order_depth, orders, theoretical_price, current_price)
+        self.execute_trading_logic(order_depth, orders, bs_call, bs_put, current_price)
 
-    def calculate_dynamic_premium(self, days_until_expiration):
-        # Dynamic premium calculation based on remaining days and volatility
-        base_premium = 637.63  # Base premium, adjust as needed
-        return base_premium
-        return base_premium * (1 + self.sigma / 100) * (days_until_expiration / self.maturity)
+        #with open("t.txt", "a") as o:
+        #    o.write(f"{current_price}, {coupon_price}, {bs_call}, {bs_put}, {self.sigma}\n")
 
-    def execute_trading_logic(self, order_depth, orders, theoretical_price, current_price):
+    def execute_trading_logic(self, order_depth, orders, bs_call, bs_put, current_price):
+        best_asks = sorted(order_depth.sell_orders.keys())
+        best_bids = sorted(order_depth.buy_orders.keys(), reverse=True)
+
+        # Determine percentage of max position to use per trade
+        trade_limit = self.max_pos * 0.1  # Allow trading up to 10% of max position per move
+        buffer = 0.1
+
+        # Implement buying if under bs_call and position not maxed out
+        trades_this_turn = 0
+        if self.current_position < self.max_pos:
+            for i, ask_price in enumerate(best_asks):
+                if ask_price < bs_call * (1-buffer):
+                    if trades_this_turn < trade_limit:
+                        self.buy_product(best_asks, i, order_depth, orders)
+                        trades_this_turn += 1
+                        self.current_position += 1
+                        break
+
+        # Implement selling if over bs_put and position not maxed out
+        if self.current_position > -self.max_pos:
+            for i, bid_price in enumerate(best_bids):
+                if bid_price > bs_put * (1 + buffer):
+                    if trades_this_turn < trade_limit:
+                        self.sell_product(best_bids, i, order_depth, orders)
+                        self.current_position -= 1
+                        trades_this_turn += 1
+                        break
+
+        return
         # Sort the asks and bids so that we can access the best prices
         best_asks = sorted(order_depth.sell_orders.keys())
         best_bids = sorted(order_depth.buy_orders.keys(), reverse=True)
 
+        buffer_percentage = 0.2  # Example buffer of 2%
+
+        # Only buy if the ask price is significantly less than the Black-Scholes call price (undervalued)
+        for i, ask_price in enumerate(best_asks):
+            if ask_price < bs_call * (1 - buffer_percentage):
+                self.buy_product(best_asks, i, order_depth, orders)
+                #break  # Optionally break after making one buying decision
+
+        # Only sell if the bid price is significantly more than the Black-Scholes call price (overvalued)
+        for i, bid_price in enumerate(best_bids):
+            if bid_price > bs_call:
+                self.sell_product(best_bids, i, order_depth, orders)
+                #break  # Optionally break after making one selling decision
+
+        return
         # Go through the asks and determine if we should buy
         for i, ask_price in enumerate(best_asks):
-            if ask_price < theoretical_price:
+            # Include a buffer to ensure we're making significant decisions
+            if ask_price < bs_call * (1 - buffer_percentage):
+                # Ensure there is sufficient liquidity
+                #available_volume = order_depth.sell_orders[ask_price]
+                #desired_volume = min(self.max_pos, available_volume)  # or some fraction based on risk # appetite
                 self.buy_product(best_asks, i, order_depth, orders)
 
         # Go through the bids and determine if we should sell
         for i, bid_price in enumerate(best_bids):
-            if bid_price > theoretical_price:
+            # Include a buffer to ensure we're making significant decisions
+            if bid_price > bs_put * (1 + buffer_percentage):
+                # Ensure there is sufficient liquidity
+                #available_volume = order_depth.buy_orders[bid_price]
+                #desired_volume = min(self.max_pos, available_volume)  # or some fraction based on risk appetite
                 self.sell_product(best_bids, i, order_depth, orders)
 
     def get_current_price(self, trading_state, product):
