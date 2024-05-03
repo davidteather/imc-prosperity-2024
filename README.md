@@ -6,6 +6,8 @@ Scaffolding from: https://github.com/MichalOkon/imc_prosperity
 
 The code is fairly disorganized but it is what it is. We also did not have time to get working algo trades for each round which definitely costed us in the rankings since it was just me doing algotrading.
 
+This was my first time doing a trading competition and I learned a lot. I think I could have done better if I had more time to work on it but I'm generally happy with the results :D
+
 ## Prerequisites
 
 To install the necessary packages, use pip with the following command:
