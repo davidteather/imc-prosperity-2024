@@ -1,6 +1,10 @@
 # IMC Prosperity 2024
 
+Writeup [here](https://dteather.com/blogs/imc-prosperity-2/)
+
 Scaffolding from: https://github.com/MichalOkon/imc_prosperity
+
+The code is fairly disorganized but it is what it is. We also did not have time to get working algo trades for each round which definitely costed us in the rankings since it was just me doing algotrading.
 
 ## Prerequisites
 
@@ -25,10 +29,3 @@ For example, to run the simulation with a sample trader, you can use the followi
 ```
 python -m simulator.simulator_test main datasets_2023/island-data-bottle-round-4/prices_round_4_day_1.csv datasets_2023/island-data-bottle-round-4/trades_round_4_day_1_nn.csv 
 ```
-
-## Write Up
-
-The writeup for our strategy is here
-
-### Tutorial
-

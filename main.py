@@ -757,7 +757,7 @@ class Coconuts(NullStrategy):
     def __init__(self):
         super().__init__("COCONUT", max_pos=300)
 
-class CoconutCoupons(BlackScholesStrategy):
+class CoconutCoupons(NullStrategy):
     def __init__(self):
         round = 4
         super().__init__("COCONUT_COUPON", max_pos=600, strike_price=10000, maturity=250 - round)
